@@ -48,7 +48,7 @@ type Credentials =
         IssuerUrl : string
     }
 
-type internal AuthenticationOauth2(issuerUrl: Uri, audience: string, privateKey: Uri, scope: string) =
+type internal AuthenticationOauth2(issuerUrl: Uri, audience: string, clientId: string, clientSecret: string, scope: string) =
     inherit Authentication()
 
     let mutable token : Option<TokenResult * DateTime> = None
@@ -76,13 +76,6 @@ type internal AuthenticationOauth2(issuerUrl: Uri, audience: string, privateKey:
             return TokenClient(Uri(metadata.TokenEndpoint), httpClient)
         }
 
-    let openAndDeserializeCreds uri =
-        backgroundTask {
-            use fs = new FileStream(uri, FileMode.Open, FileAccess.Read)
-            let! temp = JsonSerializer.DeserializeAsync<Credentials>(fs)
-            return temp
-        }
-
     //https://datatracker.ietf.org/doc/html/rfc6749#section-4.2.2
     let tryGetToken()  =
         token
@@ -104,12 +97,11 @@ type internal AuthenticationOauth2(issuerUrl: Uri, audience: string, privateKey:
         | None ->
             let newToken =
                 (backgroundTask {
-                    let! credentials = openAndDeserializeCreds(privateKey.LocalPath)
                     let! tokenClient = getTokenClient()
                     return!
                         tokenClient.ExchangeClientCredentials(
-                            credentials.ClientId,
-                            credentials.ClientSecret,
+                            clientId,
+                            clientSecret,
                             audience,
                             scope
                         )
